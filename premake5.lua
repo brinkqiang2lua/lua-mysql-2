@@ -2,21 +2,19 @@
 -- Premake script (http://premake.github.io)
 --
 
-assert(os.get() == 'windows' or os.get() == 'linux')
-
 solution 'lua-mysql'
-    configurations {'Debug', 'Release'}
-    targetdir 'bin'
+    configurations  {'Debug', 'Release'}
+    targetdir       'bin'
 
-    configuration 'Debug'
+    filter 'configurations:Debug'
         defines { 'DEBUG' }
         flags { 'Symbols' }
 
-    configuration 'Release'
+    filter 'configurations:Release'
         defines { 'NDEBUG' }
         flags { 'Symbols', 'Optimize' }
 
-    configuration 'vs*'
+    filter 'action:vs*'
         defines
         {
             'WIN32',
@@ -24,24 +22,55 @@ solution 'lua-mysql'
             '_WIN32_WINNT=0x0600',
             '_CRT_SECURE_NO_WARNINGS',
             'NOMINMAX',
+            'inline=__inline',
 			'LUA_BUILD_AS_DLL',
-			'inline=__inline',
         }
-    configuration 'gmake'
-        buildoptions '-std=c99'
-        links 
-        {
-            'm',
-            'dl',
-        }
-        
-    project 'luamysql'
-        targetname 'luamysql'
+
+    filter 'action:gmake'
+        buildoptions  '-std=c99'
+
+	project 'lua'
+        targetname 'lua'
         location 'build'
         language 'C'
-        kind 'SharedLib'
-                    
-		defines {'LUA_LIB'}
+        kind 'ConsoleApp'
+
+        files
+        {
+            'dep/lua/src/lua.c',
+        }
+        links 'lua5.3'
+
+        filter 'system:linux'
+            defines 'LUA_USE_LINUX'
+            links { 'm', 'dl', 'readline'}
+
+    project 'lua5.3'
+        targetname  'lua5.3'
+        location    'build'
+        language    'C'
+        kind        'SharedLib'
+        files
+        {
+            'dep/lua/src/*.h',
+            'dep/lua/src/*.c',
+        }
+        removefiles
+        {
+            'dep/lua/src/lua.c',
+            'dep/lua/src/luac.c',
+        }
+
+        filter 'system:linux'
+            defines 'LUA_USE_LINUX'
+
+    project 'luamysql'
+        targetname  'luamysql'
+        location    'build'
+        language    'C'
+        kind        'SharedLib'
+
+		defines 'LUA_LIB'
         files
         {
             'src/*.h',
@@ -53,43 +82,11 @@ solution 'lua-mysql'
             'dep/lua/src',
         }
         libdirs 'bin'
-        links 'lua5.3'
-        
-        configuration 'windows'
-            links 'libmysql'
-            
-        configuration 'linux'
-            links 'mysqlclient'        
-     
-	project 'lua'
-        targetname 'lua'
-        location 'build'
-        language 'C'
-        kind 'ConsoleApp'
-        
-        files
-        {
-            'dep/lua/src/lua.c',
-        }
-        links 'lua5.3'
-        
-        configuration 'linux'
-            defines 'LUA_USE_LINUX'
-            links { 'm', 'dl', 'readline'}          
+        links   'lua5.3'
 
-    project 'lua5.3'
-        targetname 'lua5.3'
-        location 'build'
-        language 'C'
-        kind 'SharedLib'
-        files
-        {
-            'dep/lua/src/*.h',
-            'dep/lua/src/*.c',
-        }
-        removefiles
-        {
-            'dep/lua/src/lua.c',
-            'dep/lua/src/luac.c',
-        }
-        
+        filter 'system:windows'
+            links 'libmysql'
+
+        filter 'system:linux'
+            links 'mysqlclient'
+            
