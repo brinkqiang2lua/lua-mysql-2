@@ -2,10 +2,6 @@
 // Distributed under the terms and conditions of the Apache License.
 // See accompanying files LICENSE.
 
-#ifdef _WIN32
-#include <WinSock2.h>
-#endif
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,10 +34,6 @@ typedef struct _Cursor
     MYSQL_RES*      my_res;     // mysql result instance
     MYSQL_FIELD*    fields;     // column names and types
 }Cursor;
-
-
-#define LMYSQL_THROW(L, conn, msg) \
-    luaL_error((L), "%s, %s\n", (msg), mysql_error((conn)))
 
 
 static int create_cursor(lua_State* L, int conn, MYSQL_RES* result,
@@ -231,7 +223,10 @@ static int conn_create(lua_State* L)
         lua_setmetatable(L, -2);
         return 1;
     }
-    return LMYSQL_THROW(L, &conn->my_conn, "create client connection");
+    else
+    {
+        return luaL_error(L, "%s\n", mysql_error(&conn->my_conn));
+    }
 }
 
 static int conn_close(lua_State* L)
@@ -281,7 +276,7 @@ static int conn_connect(lua_State* L)
     if (mysql_real_connect(&conn->my_conn, host, user, passwd, db, port,
             unix_socket, flags) != &conn->my_conn)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "connect() failed");
+        return luaL_error(L, "connect failed, %s\n", mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -307,7 +302,7 @@ static int conn_execute(lua_State* L)
     int err = mysql_real_query(my_conn, stmt, (unsigned long)length);
     if (err != 0)
     {
-        return LMYSQL_THROW(L, my_conn, "execute() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(my_conn));
     }
 
     MYSQL_RES* res = NULL;
@@ -337,7 +332,7 @@ static int conn_commit(lua_State* L)
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     if (mysql_commit(&conn->my_conn) != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "rollback() failed");
+        return luaL_error(L, "commit failed, %s\n", mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -348,7 +343,7 @@ static int conn_rollback(lua_State* L)
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     if (mysql_rollback(&conn->my_conn) != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "rollback() failed");
+        return luaL_error(L, "rollback failed, %s\n", mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -358,9 +353,10 @@ static int conn_set_charset(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     const char* charset = luaL_checkstring(L, 2);
-    if (mysql_options(&conn->my_conn, MYSQL_SET_CHARSET_NAME, charset) != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_SET_CHARSET_NAME, charset);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_charset() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -370,9 +366,10 @@ static int conn_set_reconnect(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     my_bool val = (my_bool)lua_toboolean(L, 2);
-    if (mysql_options(&conn->my_conn, MYSQL_OPT_RECONNECT, &val) != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_OPT_RECONNECT, &val);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_reconnect() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -382,10 +379,10 @@ static int conn_set_connect_timeout(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     uint32_t timeout = (unsigned int)luaL_checkinteger(L, 2);
-    int error = mysql_options(&conn->my_conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
-    if (error != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_connect_timeout() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -395,10 +392,10 @@ static int conn_set_read_timeout(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     uint32_t timeout = (unsigned int)luaL_checkinteger(L, 2);
-    int error = mysql_options(&conn->my_conn, MYSQL_OPT_READ_TIMEOUT, &timeout);
-    if (error != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_OPT_READ_TIMEOUT, &timeout);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_read_timeout() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -408,10 +405,10 @@ static int conn_set_write_timeout(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     uint32_t timeout = (unsigned int)luaL_checkinteger(L, 2);
-    int error = mysql_options(&conn->my_conn, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
-    if (error != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_write_timeout() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -420,9 +417,10 @@ static int conn_set_compress(lua_State* L)
 {
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
-    if (mysql_options(&conn->my_conn, MYSQL_OPT_COMPRESS, NULL) != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_OPT_COMPRESS, NULL);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_compress() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -432,9 +430,10 @@ static int conn_set_protocol(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     unsigned int protocol = (unsigned int)luaL_checkinteger(L, 2);
-    if (mysql_options(&conn->my_conn, MYSQL_OPT_PROTOCOL, &protocol) != 0)
+    int err = mysql_options(&conn->my_conn, MYSQL_OPT_PROTOCOL, &protocol);
+    if (err != 0)
     {
-        LMYSQL_THROW(L, &conn->my_conn, "set_compress() failed");
+        return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
     }
     return 0;
 }
@@ -444,9 +443,13 @@ static int conn_ping(lua_State* L)
     Connection* conn = check_conn(L);
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     MYSQL* my_conn = &conn->my_conn;
-    if (my_conn->methods == NULL || mysql_ping(my_conn) != 0)
+    if (my_conn->methods == NULL)
     {
-        LMYSQL_THROW(L, my_conn, "ping() failed");
+        int err = mysql_ping(my_conn);
+        if (err != 0)
+        {
+            return luaL_error(L, "%d: %s\n", err, mysql_error(&conn->my_conn));
+        }
     }
     return 0;
 }
@@ -457,7 +460,7 @@ static int conn_escape_string(lua_State* L)
     luaL_argcheck(L, conn && !conn->closed, 1, "invalid Connection object");
     size_t length = 0;
     const char* stmt = luaL_checklstring(L, 2, &length);
-    char* dest = (char*)malloc(length * 2 + 1);
+    char* dest = malloc(length * 2 + 1);
     if (dest == NULL)
     {
         return luaL_error(L, "malloc() failed.");
@@ -511,20 +514,14 @@ static void push_mysql_constant(lua_State* L)
 static void create_meta(lua_State* L, const char* name, const luaL_Reg* methods)
 {
     assert(L && name && methods);
-    if (luaL_newmetatable(L, name))
-    {
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-        luaL_setfuncs(L, methods, 0);
-        lua_pushliteral(L, "__metatable");
-        lua_pushliteral(L, "cannot access this metatable");
-        lua_settable(L, -3);
-        lua_pop(L, 1);  /* pop new metatable */
-    }
-    else
-    {
-        luaL_error(L, "`%s` already registered.", name);
-    }
+    luaL_newmetatable(L, name);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, methods, 0);
+    lua_pushliteral(L, "__metatable");
+    lua_pushliteral(L, "cannot access this metatable");
+    lua_settable(L, -3);
+    lua_pop(L, 1);  /* pop new metatable */
 }
 
 static void make_meta(lua_State* L)
@@ -563,7 +560,7 @@ static void make_meta(lua_State* L)
     create_meta(L, LUAMYSQL_CURSOR, cursor_methods);
 }
 
-LUALIB_API int luaopen_luamysql(lua_State* L)
+LUALIB_API int luaopen_mysql(lua_State* L)
 {
     static const luaL_Reg lib[] =
     {
