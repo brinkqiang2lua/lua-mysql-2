@@ -1,4 +1,4 @@
-local mysql = require 'luamysql'
+local mysql = require 'mysql'
 
 print('mysql client version:', mysql._VERSION)
 

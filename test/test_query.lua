@@ -1,4 +1,4 @@
-local mysql = require 'luamysql'
+local mysql = require 'mysql'
 
 local conf =
 {
