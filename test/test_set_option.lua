@@ -12,13 +12,13 @@ local conf =
     client_flag = flag
 }
 
-local client = mysql.new_client()
-client:set_charset('utf8')
-client:set_reconnect(true)
-client:set_connect_timeout(3)
-client:set_read_timeout(3)
-client:set_write_timeout(3)
-client:set_protocol(mysql.PROTOCOL_TCP)
-client:set_compress()
+local client = mysql.createClient()
+client:setCharset('utf8')
+client:setReconnect(true)
+client:setConnectTimeout(3)
+client:setReadTimeout(3)
+client:setWriteTimeout(3)
+client:setProtocol(mysql.PROTOCOL_TCP)
+client:setCompress()
 client:connect(conf)
 client:close()

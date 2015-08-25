@@ -8,7 +8,7 @@ local conf =
     db = 'world',
 }
 
-local client = mysql.new_client()
+local client = mysql.createClient()
 client:connect(conf)
 
 local stmt = [[select count(*) as num from country where continent='asia']]

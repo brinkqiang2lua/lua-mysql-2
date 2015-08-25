@@ -14,7 +14,7 @@ local stmt = [[CREATE TABLE IF NOT EXISTS `mytest`(
     `score` int DEFAULT 0
     ) ]]
 
-local client = mysql.new_client()
+local client = mysql.createClient()
 client:connect(conf)
 local r = client:execute(stmt)
 
