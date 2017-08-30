@@ -8,11 +8,14 @@ solution 'lua-mysql'
 
     filter 'configurations:Debug'
         defines { 'DEBUG' }
-        flags { 'Symbols' }
+        symbols 'On'
+        
 
     filter 'configurations:Release'
         defines { 'NDEBUG' }
-        flags { 'Symbols', 'Optimize' }
+        symbols 'On'
+        optimize 'On'
+
 
     filter 'action:vs*'
         defines
@@ -63,6 +66,7 @@ solution 'lua-mysql'
 
         filter 'system:linux'
             defines 'LUA_USE_LINUX'
+
 
     project 'luamysql'
         targetname  'luamysql'
